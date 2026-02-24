@@ -1,20 +1,29 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { useLibraryStore } from './src/store/libraryStore';
+import { useThemeStore } from './src/store/themeStore';
+import { useSettingsStore } from './src/store/settingsStore';
+import { usePlaylistStore } from './src/store/playlistStore';
+import { usePlayerStore } from './src/store/playerStore';
+import AppNavigator from './src/navigation/AppNavigator';
 
 export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
-}
+  const loadFavorites = useLibraryStore((s) => s.loadFavorites);
+  const loadDownloads = useLibraryStore((s) => s.loadDownloads);
+  const loadRecentSearches = useLibraryStore((s) => s.loadRecentSearches);
+  const loadTheme = useThemeStore((s) => s.loadTheme);
+  const loadSettings = useSettingsStore((s) => s.loadSettings);
+  const loadPlaylists = usePlaylistStore((s) => s.loadPlaylists);
+  const loadQueue = usePlayerStore((s) => s.loadQueue);
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+  useEffect(() => {
+    loadTheme();
+    loadFavorites();
+    loadDownloads();
+    loadRecentSearches();
+    loadSettings();
+    loadPlaylists();
+    loadQueue();
+  }, []);
+
+  return <AppNavigator />;
+}
