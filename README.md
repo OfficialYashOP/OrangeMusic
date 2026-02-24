@@ -1,5 +1,8 @@
-# 🎵 OrangeMusic Player — React Native
+<p align="center">
+  <img src="assets/icon.png" width="150" alt="OrangeMusic Logo">
+</p>
 
+# 🎵 OrangeMusic Player — React Native
 A production-quality music streaming app built with **React Native (Expo)** and **TypeScript**, powered by the [JioSaavn API](https://saavn.sumit.co).
 
 > Built for the **Lokal React Native Intern Assignment**
