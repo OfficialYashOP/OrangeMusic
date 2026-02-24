@@ -180,7 +180,7 @@ Using the [JioSaavn Unofficial API](https://saavn.sumit.co) — no API key requi
 
 ## 📦 APK Download
 
-[Link to APK will be added here]
+[https://github.com/OfficialYashOP/OrangeMusic/releases/tag/OrangeMusic]
 
 ---
 
