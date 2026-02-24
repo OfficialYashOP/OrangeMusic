@@ -1,4 +1,4 @@
-# 🎵 JioSaavn Music Player — React Native
+# 🎵 OrangeMusic Player — React Native
 
 A production-quality music streaming app built with **React Native (Expo)** and **TypeScript**, powered by the [JioSaavn API](https://saavn.sumit.co).
 
