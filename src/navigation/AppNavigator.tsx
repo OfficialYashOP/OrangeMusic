@@ -11,8 +11,10 @@ import PlayerScreen from '../screens/PlayerScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import AlbumDetailScreen from '../screens/AlbumDetailScreen';
+import AuthScreen from '../screens/AuthScreen';
 import MiniPlayer from '../components/MiniPlayer';
 import { usePlayerStore } from '../store/playerStore';
+import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../store/themeStore';
 
 const Tab = createBottomTabNavigator();
@@ -81,6 +83,16 @@ function TabsWithMiniPlayer({ navigation }: any) {
 
 export default function AppNavigator() {
     const c = useTheme();
+    const token = useAuthStore((s) => s.token);
+    const isLoading = useAuthStore((s) => s.isLoading);
+
+    if (isLoading) {
+        return (
+            <View style={[styles.container, { backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }]}>
+                <Ionicons name="musical-notes" size={48} color={c.accent} />
+            </View>
+        );
+    }
 
     return (
         <NavigationContainer>
@@ -90,31 +102,41 @@ export default function AppNavigator() {
                     cardStyle: { backgroundColor: c.bg },
                 }}
             >
-                <RootStack.Screen name="Main" component={TabsWithMiniPlayer} />
-                <RootStack.Screen
-                    name="Player"
-                    component={PlayerScreen}
-                    options={{
-                        ...TransitionPresets.ModalSlideFromBottomIOS,
-                        cardStyle: { backgroundColor: c.bg },
-                    }}
-                />
-                <RootStack.Screen
-                    name="ArtistDetail"
-                    component={ArtistDetailScreen}
-                    options={{
-                        ...TransitionPresets.SlideFromRightIOS,
-                        cardStyle: { backgroundColor: c.bg },
-                    }}
-                />
-                <RootStack.Screen
-                    name="AlbumDetail"
-                    component={AlbumDetailScreen}
-                    options={{
-                        ...TransitionPresets.SlideFromRightIOS,
-                        cardStyle: { backgroundColor: c.bg },
-                    }}
-                />
+                {!token ? (
+                    <RootStack.Screen
+                        name="Auth"
+                        component={AuthScreen}
+                        options={{ animationTypeForReplace: 'pop' }}
+                    />
+                ) : (
+                    <>
+                        <RootStack.Screen name="Main" component={TabsWithMiniPlayer} />
+                        <RootStack.Screen
+                            name="Player"
+                            component={PlayerScreen}
+                            options={{
+                                ...TransitionPresets.ModalSlideFromBottomIOS,
+                                cardStyle: { backgroundColor: c.bg },
+                            }}
+                        />
+                        <RootStack.Screen
+                            name="ArtistDetail"
+                            component={ArtistDetailScreen}
+                            options={{
+                                ...TransitionPresets.SlideFromRightIOS,
+                                cardStyle: { backgroundColor: c.bg },
+                            }}
+                        />
+                        <RootStack.Screen
+                            name="AlbumDetail"
+                            component={AlbumDetailScreen}
+                            options={{
+                                ...TransitionPresets.SlideFromRightIOS,
+                                cardStyle: { backgroundColor: c.bg },
+                            }}
+                        />
+                    </>
+                )}
             </RootStack.Navigator>
         </NavigationContainer>
     );

@@ -17,6 +17,7 @@ import { useLibraryStore } from '../store/libraryStore';
 import { usePlayerStore } from '../store/playerStore';
 import { Song, getImageUrl, getArtistNames } from '../types/song';
 import AddToPlaylistSheet from './AddToPlaylistSheet';
+import SongDetailsModal from './SongDetailsModal';
 
 interface SongOptionsSheetProps {
     visible: boolean;
@@ -40,6 +41,7 @@ export default function SongOptionsSheet({
     const isDownloaded = useLibraryStore((s) => s.isDownloaded);
 
     const [playlistSheetVisible, setPlaylistSheetVisible] = useState(false);
+    const [detailsVisible, setDetailsVisible] = useState(false);
 
     if (!song) return null;
 
@@ -109,21 +111,8 @@ export default function SongOptionsSheet({
     };
 
     const handleDetails = () => {
-        const details = [
-            `🎵 ${song.name}`,
-            `🎤 ${getArtistNames(song)}`,
-            `💿 ${song.album.name || 'Unknown Album'}`,
-            `📅 ${song.year || 'Unknown Year'}`,
-            `⏱ ${formatSongDuration()}`,
-            `🌐 ${song.language || 'Unknown'}`,
-            `🏷 ${song.label || 'Unknown Label'}`,
-            `📝 Lyrics: ${song.hasLyrics ? 'Available' : 'Not available'}`,
-            `🔞 Explicit: ${song.explicitContent ? 'Yes' : 'No'}`,
-            `▶️ Plays: ${song.playCount ? song.playCount.toLocaleString() : 'N/A'}`,
-        ].join('\n');
-
-        Alert.alert('Song Details', details);
         onClose();
+        setTimeout(() => setDetailsVisible(true), 300);
     };
 
     const handleSetRingtone = () => {
@@ -158,6 +147,7 @@ export default function SongOptionsSheet({
         { icon: 'call-outline', label: 'Set as Ringtone', onPress: handleSetRingtone },
         { icon: 'close-circle-outline', label: 'Add to Blacklist', onPress: handleBlacklist },
         { icon: 'paper-plane-outline', label: 'Share', onPress: handleShare },
+        { icon: 'download-outline', label: 'Download', onPress: handleDownload },
         { icon: 'trash-outline', label: 'Delete from Device', onPress: handleDeleteFromDevice },
     ];
 
@@ -213,6 +203,13 @@ export default function SongOptionsSheet({
                 visible={playlistSheetVisible}
                 song={song}
                 onClose={() => setPlaylistSheetVisible(false)}
+            />
+
+            {/* Themed Song Details Modal */}
+            <SongDetailsModal
+                visible={detailsVisible}
+                song={song}
+                onClose={() => setDetailsVisible(false)}
             />
         </>
     );

@@ -20,6 +20,7 @@ import { useTheme, useIsDark, useThemeStore } from '../store/themeStore';
 import { useSettingsStore, AudioQuality } from '../store/settingsStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { usePlayerStore } from '../store/playerStore';
+import { useAuthStore } from '../store/authStore';
 import { audioService } from '../services/audioService';
 
 const QUALITY_OPTIONS: AudioQuality[] = ['96kbps', '160kbps', '320kbps'];
@@ -50,6 +51,7 @@ export default function SettingsScreen({ navigation }: any) {
     const clearRecentSearches = useLibraryStore((s) => s.clearRecentSearches);
 
     const currentSong = usePlayerStore((s) => s.currentSong);
+    const logout = useAuthStore((s) => s.logout);
 
     const [qualityModal, setQualityModal] = useState<'audio' | 'download' | null>(null);
     const [sleepModal, setSleepModal] = useState(false);
@@ -100,6 +102,17 @@ export default function SettingsScreen({ navigation }: any) {
         } catch (_) { }
     };
 
+    const handleLogout = () => {
+        Alert.alert(
+            'Log Out',
+            'Are you sure you want to log out?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Log Out', style: 'destructive', onPress: () => logout() },
+            ]
+        );
+    };
+
     const settingItems: {
         icon: keyof typeof Ionicons.glyphMap;
         label: string;
@@ -118,6 +131,7 @@ export default function SettingsScreen({ navigation }: any) {
             { icon: 'language-outline', label: 'Language', value: 'English', onPress: () => Alert.alert('Language', 'Currently only English is supported.') },
             { icon: 'shield-checkmark-outline', label: 'Privacy', value: '', onPress: () => Alert.alert('Privacy', 'Your data is stored locally on your device only. No data is collected or shared.') },
             { icon: 'information-circle-outline', label: 'About', value: 'v1.0.0', onPress: () => Alert.alert('OrangeMusic', 'Version 1.0.0\nBuilt with React Native & Expo\nPowered by JioSaavn API\n\nDeveloped By Yash Reg Number - xxxxx960') },
+            { icon: 'log-out-outline', label: 'Log Out', onPress: handleLogout },
         ];
 
     const bottomSpacing = currentSong ? 176 : 96;

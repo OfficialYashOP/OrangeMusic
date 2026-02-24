@@ -32,6 +32,14 @@ A production-quality music streaming app built with **React Native (Expo)** and 
 - **🚀 Strict Deduplication** — API results are cleaned in real-time to remove duplicate compilation tracks
 - **🔔 Interactive Toasts** — Native Android Toast notifications confirm Library & Playlist actions
 
+### 🌟 Advanced AI Features (Vercel + Gemini)
+- **🔐 Secure Authentication** — Email and Guest login system powered by Vercel serverless backend
+- **🧠 Gemini 3 Flash Preview** — All AI features are routed through a secure Vercel backend using the latest Gemini models
+- **🎙️ AI Voice Search** — Tap the floating mic on the Home screen to search for songs using natural language
+- **✨ AI DJ (Smart Mix)** — Generates 5 personalized song recommendations based on your Favorites
+- **💡 AI Explain Lyrics** — Deep dive into the meaning and story behind any song (even without official lyrics)
+- **🤯 AI Song Trivia** — Discover amazing facts about songs right from the new glassmorphic Song Details modal
+
 ---
 
 ## 🏗️ Architecture
@@ -50,15 +58,18 @@ src/
 ├── navigation/
 │   └── AppNavigator.tsx      # React Navigation v6+ (tabs + modal stack)
 ├── screens/
-│   ├── HomeScreen.tsx        # Search + tabs + song list + pagination
+│   ├── AuthScreen.tsx        # Login and Guest access screen
+│   ├── HomeScreen.tsx        # Search + AI Voice Search + Smart Mix row + tabs
 │   ├── PlayerScreen.tsx      # Full-screen player controls + lyrics + queue
 │   ├── LibraryScreen.tsx     # Favorites + downloads tabs
-│   ├── SettingsScreen.tsx    # Quality pickers, sleep timer, theme toggle
+│   ├── SettingsScreen.tsx    # Quality pickers, sleep timer, theme toggle, Logout
 │   ├── ArtistDetailScreen.tsx# Artist songs + albums
 │   └── AlbumDetailScreen.tsx # Album songs
 ├── services/
+│   ├── aiService.ts          # Integrates with Vercel backend for Gemini API calls
 │   └── audioService.ts       # expo-audio engine (quality-aware, speed control, sleep timer)
 ├── store/
+│   ├── authStore.ts          # Zustand: JWT token and user state
 │   ├── playerStore.ts        # Zustand: playback state, queue, shuffle/repeat
 │   ├── libraryStore.ts       # Zustand: favorites + downloads + recent searches + AsyncStorage  
 │   ├── themeStore.ts         # Zustand: dark/light mode + AsyncStorage persistence
@@ -149,8 +160,10 @@ Using the [JioSaavn Unofficial API](https://saavn.sumit.co) — no API key requi
 | Framework | React Native (Expo) |
 | Language | TypeScript (strict mode) |
 | Navigation | React Navigation v6+ (Bottom Tabs + Native Stack) |
-| State Management | Zustand (4 stores) |
+| State Management | Zustand (5 stores - including Auth) |
 | Audio | expo-audio |
+| AI / LLM | Google Gemini (`gemini-3-flash-preview`) |
+| Backend | Vercel Serverless Functions |
 | Storage | AsyncStorage |
 | Icons | @expo/vector-icons (Ionicons) |
 | Styling | React Native StyleSheet (no 3rd-party UI libs) |

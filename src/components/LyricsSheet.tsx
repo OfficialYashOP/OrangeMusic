@@ -12,6 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../store/themeStore';
 import { usePlayerStore } from '../store/playerStore';
 import { getLyrics } from '../api/saavn';
+import { aiService } from '../services/aiService';
+import { getArtistNames } from '../types/song';
 
 interface LyricsSheetProps {
     visible: boolean;
@@ -24,12 +26,15 @@ export default function LyricsSheet({ visible, onClose }: LyricsSheetProps) {
     const [lyrics, setLyrics] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(false);
+    const [explanation, setExplanation] = useState<string | null>(null);
+    const [explaining, setExplaining] = useState(false);
 
     useEffect(() => {
         if (!visible || !currentSong) return;
 
         setLyrics(null);
         setError(false);
+        setExplanation(null);
 
         if (!currentSong.hasLyrics) {
             setError(true);
@@ -56,6 +61,18 @@ export default function LyricsSheet({ visible, onClose }: LyricsSheetProps) {
             setLoading(false);
         })();
     }, [visible, currentSong]);
+
+    const handleExplain = async () => {
+        if (!currentSong) return;
+        setExplaining(true);
+        const meaning = await aiService.explainLyrics(
+            currentSong.name,
+            getArtistNames(currentSong),
+            lyrics || undefined
+        );
+        setExplanation(meaning);
+        setExplaining(false);
+    };
 
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -87,22 +104,46 @@ export default function LyricsSheet({ visible, onClose }: LyricsSheetProps) {
                                 style={{ marginTop: 40 }}
                             />
                         )}
-                        {error && !loading && (
-                            <View style={styles.noLyrics}>
-                                <Ionicons name="musical-note-outline" size={48} color={c.muted} />
-                                <Text style={[styles.noLyricsText, { color: c.text }]}>
-                                    No Lyrics Available
+                        <View>
+                            <Pressable
+                                style={[styles.aiBtn, { backgroundColor: c.accent + '20', borderColor: c.accent }]}
+                                onPress={handleExplain}
+                                disabled={explaining}
+                            >
+                                <Ionicons name={explaining ? "hourglass-outline" : "sparkles"} size={18} color={c.accent} />
+                                <Text style={[styles.aiBtnText, { color: c.accent }]}>
+                                    {explaining ? 'Analyzing...' : '✨ AI Explain Meaning'}
                                 </Text>
-                                <Text style={[styles.noLyricsSub, { color: c.muted }]}>
-                                    Lyrics are not available for this song yet.
+                            </Pressable>
+
+                            {explanation && (
+                                <View style={[styles.aiCard, { backgroundColor: c.card, borderColor: c.border }]}>
+                                    <View style={styles.aiCardHeader}>
+                                        <Ionicons name="sparkles" size={16} color={c.accent} />
+                                        <Text style={[styles.aiCardTitle, { color: c.accent }]}>AI Meaning</Text>
+                                    </View>
+                                    <Text style={[styles.aiCardText, { color: c.text }]}>{explanation}</Text>
+                                </View>
+                            )}
+
+                            {error && !loading && (
+                                <View style={styles.noLyrics}>
+                                    <Ionicons name="musical-note-outline" size={48} color={c.muted} />
+                                    <Text style={[styles.noLyricsText, { color: c.text }]}>
+                                        Lyrics Missing
+                                    </Text>
+                                    <Text style={[styles.noLyricsSub, { color: c.muted }]}>
+                                        Official lyrics aren't here, but Gemini can still explain the song vibe!
+                                    </Text>
+                                </View>
+                            )}
+
+                            {lyrics && !loading && (
+                                <Text style={[styles.lyricsText, { color: c.textSecondary }]}>
+                                    {lyrics}
                                 </Text>
-                            </View>
-                        )}
-                        {lyrics && !loading && (
-                            <Text style={[styles.lyricsText, { color: c.textSecondary }]}>
-                                {lyrics}
-                            </Text>
-                        )}
+                            )}
+                        </View>
                     </ScrollView>
                 </Pressable>
             </Pressable>
@@ -179,4 +220,40 @@ const styles = StyleSheet.create({
         marginTop: 6,
         textAlign: 'center',
     },
+    aiBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        marginBottom: 20,
+        gap: 8,
+    },
+    aiBtnText: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    aiCard: {
+        padding: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        marginBottom: 20,
+    },
+    aiCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+        gap: 6,
+    },
+    aiCardTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+    },
+    aiCardText: {
+        fontSize: 15,
+        lineHeight: 24,
+    }
 });

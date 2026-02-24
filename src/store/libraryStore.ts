@@ -1,7 +1,17 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ToastAndroid, Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Song } from '../types/song';
+
+const DOWNLOAD_DIR = `${FileSystem.documentDirectory}downloads/`;
+
+const ensureDirExists = async () => {
+    const dirInfo = await FileSystem.getInfoAsync(DOWNLOAD_DIR);
+    if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(DOWNLOAD_DIR, { intermediates: true });
+    }
+};
 
 const showToast = (message: string) => {
     if (Platform.OS === 'android') {
@@ -15,8 +25,9 @@ const RECENT_SEARCHES_KEY = '@orangemusic_recent_searches';
 
 export interface LibraryState {
     favorites: Song[];
-    downloads: Song[];
+    downloads: (Song & { localUri?: string })[];
     recentSearches: string[];
+    smartMix: Song[];
     isLoaded: boolean;
 
     loadFavorites: () => Promise<void>;
@@ -35,12 +46,16 @@ export interface LibraryState {
     addRecentSearch: (query: string) => Promise<void>;
     removeRecentSearch: (query: string) => Promise<void>;
     clearRecentSearches: () => Promise<void>;
+
+    // AI
+    setSmartMix: (songs: Song[]) => void;
 }
 
 export const useLibraryStore = create<LibraryState>((set, get) => ({
     favorites: [],
     downloads: [],
     recentSearches: [],
+    smartMix: [],
     isLoaded: false,
 
     loadFavorites: async () => {
@@ -110,21 +125,45 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     addDownload: async (song) => {
         const { downloads } = get();
         if (downloads.some((s) => s.id === song.id)) return;
-        const updated = [song, ...downloads];
-        set({ downloads: updated });
+
+        showToast(`Downloading "${song.name}"...`);
+
         try {
-            await AsyncStorage.setItem(DOWNLOADS_KEY, JSON.stringify(updated));
+            await ensureDirExists();
+            const fileName = `${song.id}.mp3`;
+            const fileUri = `${DOWNLOAD_DIR}${fileName}`;
+
+            // Get the best URL available
+            const downloadUrl = song.downloadUrl[song.downloadUrl.length - 1].url;
+
+            const downloadRes = await FileSystem.downloadAsync(downloadUrl, fileUri);
+
+            if (downloadRes.status === 200) {
+                const updatedSong = { ...song, localUri: downloadRes.uri };
+                const updated = [updatedSong, ...downloads];
+                set({ downloads: updated });
+                await AsyncStorage.setItem(DOWNLOADS_KEY, JSON.stringify(updated));
+                showToast('Download complete!');
+            } else {
+                showToast('Download failed');
+            }
         } catch (error) {
-            console.error('Failed to save download:', error);
+            console.error('Download error:', error);
+            showToast('Download error');
         }
     },
 
     removeDownload: async (songId) => {
         const { downloads } = get();
+        const songToRemove = downloads.find(s => s.id === songId);
         const updated = downloads.filter((s) => s.id !== songId);
         set({ downloads: updated });
         try {
+            if (songToRemove?.localUri) {
+                await FileSystem.deleteAsync(songToRemove.localUri, { idempotent: true });
+            }
             await AsyncStorage.setItem(DOWNLOADS_KEY, JSON.stringify(updated));
+            showToast('Deleted from device');
         } catch (error) {
             console.error('Failed to remove download:', error);
         }
@@ -137,7 +176,9 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     clearDownloads: async () => {
         set({ downloads: [] });
         try {
+            await FileSystem.deleteAsync(DOWNLOAD_DIR, { idempotent: true });
             await AsyncStorage.removeItem(DOWNLOADS_KEY);
+            showToast('All downloads cleared');
         } catch (_) { }
     },
 
@@ -182,4 +223,6 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
             await AsyncStorage.removeItem(RECENT_SEARCHES_KEY);
         } catch (_) { }
     },
+
+    setSmartMix: (songs) => set({ smartMix: songs }),
 }));

@@ -4,6 +4,7 @@ import { useThemeStore } from './src/store/themeStore';
 import { useSettingsStore } from './src/store/settingsStore';
 import { usePlaylistStore } from './src/store/playlistStore';
 import { usePlayerStore } from './src/store/playerStore';
+import { useAuthStore } from './src/store/authStore';
 import AppNavigator from './src/navigation/AppNavigator';
 
 export default function App() {
@@ -14,9 +15,11 @@ export default function App() {
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const loadPlaylists = usePlaylistStore((s) => s.loadPlaylists);
   const loadQueue = usePlayerStore((s) => s.loadQueue);
+  const loadAuth = useAuthStore((s) => s.loadAuth);
 
   useEffect(() => {
     loadTheme();
+    loadAuth();
     loadFavorites();
     loadDownloads();
     loadRecentSearches();

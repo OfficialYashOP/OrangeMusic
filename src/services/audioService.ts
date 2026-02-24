@@ -1,7 +1,8 @@
 import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import { usePlayerStore } from '../store/playerStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { Song, getDownloadUrl, DownloadUrl } from '../types/song';
+import { useLibraryStore } from '../store/libraryStore';
+import { Song, getDownloadUrl, DownloadUrl, getImageUrl, getArtistNames } from '../types/song';
 
 class AudioService {
     private player: AudioPlayer | null = null;
@@ -131,7 +132,10 @@ class AudioService {
             store.setIsLoading(true);
             store.setCurrentSong(song);
 
-            const downloadUrl = this.getPreferredUrl(song.downloadUrl);
+            // Check if song is downloaded
+            const downloadInfo = useLibraryStore.getState().downloads.find(s => s.id === song.id);
+            const downloadUrl = downloadInfo?.localUri || this.getPreferredUrl(song.downloadUrl);
+
             if (!downloadUrl) {
                 console.error('No download URL for song:', song.name);
                 store.setIsLoading(false);
@@ -163,6 +167,14 @@ class AudioService {
             store.setIsLoading(false);
             store.setDuration((song.duration || 0) * 1000);
             store.setPosition(0);
+
+            // Set Lock Screen Info
+            try {
+                this.player.setActiveForLockScreen(true, {
+                    title: song.name,
+                    artist: getArtistNames(song),
+                });
+            } catch (_) { }
 
             this.startProgressTracking();
             this.startEndTracking();
@@ -268,6 +280,15 @@ class AudioService {
         if (!songs || songs.length === 0) return;
         const safeIndex = Math.max(0, Math.min(startIndex, songs.length - 1));
         const store = usePlayerStore.getState();
+
+        // If the user taps the song that is currently playing, just toggle play/pause
+        if (store.currentSong?.id === songs[safeIndex].id) {
+            await this.togglePlayPause();
+            // Optional: still update the queue in case they are playing it from a different list
+            store.setQueue(songs, safeIndex);
+            return;
+        }
+
         store.setQueue(songs, safeIndex);
         await this.playSong(songs[safeIndex]);
     }

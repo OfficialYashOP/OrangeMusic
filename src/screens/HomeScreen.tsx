@@ -27,6 +27,9 @@ import { useTheme } from '../store/themeStore';
 import SortModal, { SortOption } from '../components/SortModal';
 import SongOptionsSheet from '../components/SongOptionsSheet';
 import ArtistOptionsSheet from '../components/ArtistOptionsSheet';
+import { aiService } from '../services/aiService';
+import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync } from 'expo-audio';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ALBUM_CARD_WIDTH = (SCREEN_WIDTH - 52) / 2;
@@ -111,6 +114,17 @@ export default function HomeScreen() {
     const tabs: HomeTab[] = ['Suggested', 'Songs', 'Artists', 'Albums'];
     const bottomSpacing = currentSong ? 176 : 96;
 
+    // AI State
+    const smartMix = useLibraryStore((s) => s.smartMix);
+    const setSmartMix = useLibraryStore((s) => s.setSmartMix);
+    const favorites = useLibraryStore((s) => s.favorites);
+    const [isGeneratingMix, setIsGeneratingMix] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const [voiceStatus, setVoiceStatus] = useState('');
+
+    // Audio Recorder
+    const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+
     // Build artist data from songs
     const artistData = useMemo(() => {
         const artistMap = new Map<string, string>();
@@ -174,7 +188,68 @@ export default function HomeScreen() {
                 if (popular.success) setMostPlayedSongs(dedup(popular.data.results || []));
             } catch (_) { }
         })();
+
+        // Generate AI Mix if empty
+        if (favorites.length > 0 && smartMix.length === 0) {
+            generateMix();
+        }
     }, [fetchSongs]);
+
+    const generateMix = async () => {
+        setIsGeneratingMix(true);
+        const mix = await aiService.generateSmartMix(favorites);
+        if (mix && mix.length > 0) {
+            setSmartMix(mix);
+        }
+        setIsGeneratingMix(false);
+    };
+
+    const startListening = async () => {
+        try {
+            Keyboard.dismiss();
+
+            // Native Permission Request (Android Critical)
+            const { granted } = await requestRecordingPermissionsAsync();
+            if (!granted) {
+                setVoiceStatus('Mic permission denied');
+                return;
+            }
+
+            setVoiceStatus('Listening...');
+            setIsListening(true);
+            await recorder.prepareToRecordAsync();
+            recorder.record();
+        } catch (err: any) {
+            console.error('Failed to start recording', err);
+            setVoiceStatus('Error starting recorder');
+            setIsListening(false);
+        }
+    };
+
+    const stopListening = async () => {
+        try {
+            setVoiceStatus('Thinking...');
+            recorder.stop();
+            const uri = recorder.uri;
+            if (uri) {
+                const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+                const songs = await aiService.processVoiceCommand(base64, 'audio/m4a');
+                if (songs && songs.length > 0) {
+                    setVoiceStatus('Playing your request!');
+                    await audioService.playQueue(songs, 0);
+                    setTimeout(() => setIsListening(false), 1500);
+                } else {
+                    setVoiceStatus("Couldn't find that.");
+                    setTimeout(() => setIsListening(false), 2000);
+                }
+            } else {
+                setIsListening(false);
+            }
+        } catch (err) {
+            console.error('Failed to process voice', err);
+            setIsListening(false);
+        }
+    };
 
     const handleSearch = useCallback((text: string) => {
         setSearchQuery(text);
@@ -568,7 +643,7 @@ export default function HomeScreen() {
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.tabRow}
+                    contentContainerStyle={[styles.tabRow, { paddingRight: 40 }]}
                 >
                     {tabs.map((tab) => (
                         <TouchableOpacity key={tab} onPress={() => setActiveTab(tab)} style={styles.tabItem}>
@@ -589,6 +664,28 @@ export default function HomeScreen() {
                         ) : (
                             <>
                                 {renderSection('Recently Played', suggestedSongs, 'cards')}
+                                {isGeneratingMix ? (
+                                    <View style={[styles.section, { alignItems: 'center', paddingVertical: 20 }]}>
+                                        <ActivityIndicator size="small" color={c.accent} />
+                                        <Text style={{ color: c.muted, marginTop: 8 }}>AI DJ is mixing...</Text>
+                                    </View>
+                                ) : smartMix.length > 0 ? (
+                                    renderSection('Made for You (AI Smart Mix)', smartMix, 'cards')
+                                ) : favorites.length > 0 ? (
+                                    <View style={[styles.section, { alignItems: 'center', paddingVertical: 10 }]}>
+                                        <TouchableOpacity onPress={generateMix} style={[styles.aiBtn, { backgroundColor: c.card, borderColor: c.accent + '40' }]}>
+                                            <Ionicons name="sparkles" size={18} color={c.accent} />
+                                            <Text style={{ color: c.text, marginLeft: 8, fontWeight: '600' }}>Refresh Smart Mix</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : (
+                                    <View style={[styles.section, { paddingHorizontal: 20 }]}>
+                                        <View style={[styles.aiEmptyCard, { backgroundColor: c.card }]}>
+                                            <Ionicons name="sparkles-outline" size={24} color={c.accent} />
+                                            <Text style={[styles.aiEmptyText, { color: c.text }]}>Start loving songs to get AI recommendations!</Text>
+                                        </View>
+                                    </View>
+                                )}
                                 {renderSection('Artists', songs, 'artists')}
                                 {renderSection('Most Played', mostPlayedSongs, 'cards')}
                             </>
@@ -719,7 +816,6 @@ export default function HomeScreen() {
                 onClose={() => setArtistOptionsVisible(false)}
             />
 
-            {/* See All Modal */}
             <Modal visible={seeAllVisible} transparent animationType="slide" onRequestClose={() => setSeeAllVisible(false)}>
                 <View style={[styles.container, { backgroundColor: c.bg, paddingTop: insets.top }]}>
                     <View style={styles.header}>
@@ -737,6 +833,24 @@ export default function HomeScreen() {
                     />
                 </View>
             </Modal>
+
+            {/* AI Voice FAB */}
+            <Pressable
+                style={[
+                    styles.fab,
+                    { bottom: bottomSpacing - 50, backgroundColor: isListening ? c.text : c.accent }
+                ]}
+                onPressIn={startListening}
+                onPressOut={stopListening}
+            >
+                <Ionicons name="mic-outline" size={28} color={isListening ? c.bg : '#fff'} />
+            </Pressable>
+
+            {voiceStatus !== '' && (
+                <View style={[styles.voiceToast, { bottom: bottomSpacing + 20, backgroundColor: c.card }]}>
+                    <Text style={{ color: c.text, fontWeight: 'bold' }}>{voiceStatus}</Text>
+                </View>
+            )}
         </View>
     );
 }
@@ -802,4 +916,31 @@ const styles = StyleSheet.create({
     emptyContainer: { alignItems: 'center', paddingTop: 90, paddingHorizontal: 40 },
     emptyText: { marginTop: 14, fontSize: 22, fontWeight: '700' },
     emptySubtext: { marginTop: 8, fontSize: 14, textAlign: 'center', lineHeight: 21 },
+    fab: { position: 'absolute', right: 20, width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3 },
+    voiceToast: { position: 'absolute', alignSelf: 'center', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 30, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3 },
+    aiBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    aiEmptyCard: {
+        padding: 24,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginHorizontal: 20,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        borderColor: '#ccc4',
+    },
+    aiEmptyText: {
+        fontSize: 15,
+        fontWeight: '600',
+        textAlign: 'center',
+        marginTop: 12,
+        lineHeight: 22,
+    }
 });
