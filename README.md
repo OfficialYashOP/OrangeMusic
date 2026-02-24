@@ -191,12 +191,6 @@ Using the [JioSaavn Unofficial API](https://saavn.sumit.co) — no API key requi
 
 [Link to demo video will be added here]
 
-## 📦 APK Download
-
-[https://github.com/OfficialYashOP/OrangeMusic/releases/tag/OrangeMusic]
-
----
-
 ## License
 
 This project is built as an assignment submission and is not intended for commercial use.
